@@ -1,18 +1,34 @@
 import { Field } from "@/components/ui/field";
 import { Toaster, toaster } from "@/components/ui/toaster";
-import { useCreateProduct } from "@/features/useCreateProduct";
+import { useCreatePost } from "@/features/useCreatePost";
+import { useDeletePost } from "@/features/useDeletePost";
 import { useFetchPosts } from "@/features/useFetchPosts";
-import { axiosInstance } from "@/lib/axios";
-import { Button, Container, Flex, Heading, Input, Spinner, Stack, Table, Text } from "@chakra-ui/react"
-import { useMutation } from "@tanstack/react-query";
+import { useUpdatePost } from "@/features/useUpdatePost";
+import { Button, Container, Flex, Heading, Input, Spinner, Stack, Table } from "@chakra-ui/react"
 import { useFormik } from "formik";
 import Head from "next/head"
+import { useEffect, useState } from "react";
 
 export default function Home() {
-  const { data,
+  const {
+    data,
     isLoading: postsIsLoading,
     refetch: refetchPosts
-  } = useFetchPosts();
+  } = useFetchPosts({
+    onError: () => {
+      toaster.create({
+        title: "Terjadi Kesalahan.",
+        type: "error",
+      });
+    }
+  });
+
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
 
   const formik = new useFormik({
     initialValues: {
@@ -21,12 +37,21 @@ export default function Home() {
       content: "",
       image: ""
     }, onSubmit: async () => {
-      const { title, price, content, image } = formik.values;
-      // Melakukan POST /posts
-      createProduct({
-        title, price: parseInt(price), content, image
-      });
+      const { title, price, content, image, id } = formik.values;
 
+      if (id) {
+        // Melakukan Update /posts/id
+        updatePost({
+          title, price: parseInt(price), content, image, id
+        })
+      } else {
+        // Melakukan POST /posts
+        createPost({
+          title, price: parseInt(price), content, image
+        });
+      }
+
+      formik.setFieldValue("id", "")
       formik.setFieldValue("title", "")
       formik.setFieldValue("price", "")
       formik.setFieldValue("content", "")
@@ -34,7 +59,7 @@ export default function Home() {
     }
   });
 
-  const { mutate: createProduct, isPending: createProductsPending } = useCreateProduct({
+  const { mutate: createPost, isPending: createPostPending } = useCreatePost({
     onSuccess: () => {
       refetchPosts();
 
@@ -45,26 +70,46 @@ export default function Home() {
     }
   });
 
-  const { mutate: deletePost, isPending: deletePostPending } = useMutation({
-    mutationFn: async (id) => {
-      const postResponse = await axiosInstance.delete(`/posts/${id}`);
-
-      return postResponse;
-    },
+  const { mutate: updatePost, isPending: updatePostPending } = useUpdatePost({
     onSuccess: () => {
       refetchPosts();
 
+      toaster.create({
+        title: "Post Updated!",
+        type: "success",
+      })
+    }
+  });
+
+  const { mutate: deletePost, isPending: deletePostPending } = useDeletePost({
+    onSuccess: () => {
+      refetchPosts();
 
       toaster.create({
         title: "Post Deleted!",
         type: "info",
-
-      })
+      });
     }
   });
 
   const handleFormInput = (event) => {
     formik.setFieldValue(event.target.name, event.target.value)
+  }
+
+  const onEditClick = (product) => {
+    formik.setFieldValue("id", product.id)
+    formik.setFieldValue("title", product.title)
+    formik.setFieldValue("price", product.price)
+    formik.setFieldValue("content", product.content)
+    formik.setFieldValue("image", product.image)
+  }
+
+  const confirmationDelete = (postId) => {
+    const shouldDelete = confirm("Are you sure?");
+
+    if (shouldDelete) {
+      deletePost(postId);
+    }
   }
 
   const renderPosts = () => {
@@ -77,9 +122,10 @@ export default function Home() {
           <Table.Cell>{post.content}</Table.Cell>
           <Table.Cell>{post.image}</Table.Cell>
           <Table.Cell>
+            <Button colorPalette={"yellow"} mr={"3"} onClick={() => onEditClick(post)}>Edit</Button>
             {
               deletePostPending ? <Spinner /> :
-                <Button colorPalette={"red"} onClick={() => deletePost(post.id)}>Delete {post.id}</Button>
+                <Button colorPalette={"red"} onClick={() => confirmationDelete(post.id)}>Delete</Button>
             }
           </Table.Cell>
         </Table.Row>
@@ -112,7 +158,7 @@ export default function Home() {
             </Table.Header>
             <Table.Body>
               {renderPosts()}
-              {postsIsLoading && <Spinner />}
+              {isClient && postsIsLoading && <Spinner />}
             </Table.Body>
           </Table.Root>
 
@@ -120,6 +166,9 @@ export default function Home() {
 
           <form onSubmit={formik.handleSubmit}>
             <Stack gap={"4"} mb={"3"} align={"center"} >
+              <Field label="Post Id">
+                <Input placeholder="Id Post" onChange={handleFormInput} name="id" value={formik.values.id}></Input>
+              </Field>
               <Field label="Title">
                 <Input placeholder="Title Post" onChange={handleFormInput} name="title" value={formik.values.title}></Input>
               </Field>
@@ -135,7 +184,7 @@ export default function Home() {
             </Stack >
 
             <Flex justify={"center"}>
-              {createProductsPending ? (
+              {createPostPending || updatePostPending ? (
                 <Spinner mb={"5"} />
               ) : (
                 <Button variant={"subtle"} type="submit" mb={"5"}>Submit Post</Button>
