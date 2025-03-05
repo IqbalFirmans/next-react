@@ -1,11 +1,25 @@
-import { usePosts } from "@/features/usePosts";
 import { axiosInstance } from "@/lib/axios";
-import { Container, Heading, Spinner, Table } from "@chakra-ui/react"
+import { Container, Heading, Spinner, Table, TableColumnHeader, TableHeader, TableRow } from "@chakra-ui/react"
 import Head from "next/head"
 import { useEffect, useState } from "react";
 
 export default function Home() {
-  const {data: posts, isLoading} = usePosts();
+  const [posts, setPosts] = useState([]); // menyimpan data response GET /posts
+  const [isLoading, setIsLoading] = useState(false)
+
+  const fetchPosts = async () => {
+    setIsLoading(true);
+    try {
+      // setTimeout(async () => {
+        const postsResponse = await axiosInstance.get("/posts");
+
+        setPosts(postsResponse.data.data);
+        setIsLoading(false);
+      // }, 1000)
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   const renderPosts = () => {
     return posts.map((product) => {
@@ -19,6 +33,10 @@ export default function Home() {
       )
     })
   }
+
+  useEffect(() => {
+    fetchPosts()
+  }, [])
 
   return (
     <>

@@ -3,4 +3,8 @@ const nextConfig = {
   reactStrictMode: true,
 };
 
-export default nextConfig;
+export default {
+  experimental: {
+    optimizePackageImports: ["@chakra-ui/react"],
+  },
+};
