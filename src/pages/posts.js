@@ -1,25 +1,18 @@
+import { usePosts } from "@/features/useFetchPosts";
 import { axiosInstance } from "@/lib/axios";
 import { Container, Heading, Spinner, Table, TableColumnHeader, TableHeader, TableRow } from "@chakra-ui/react"
+import { useQuery } from "@tanstack/react-query";
 import Head from "next/head"
 import { useEffect, useState } from "react";
 
 export default function Home() {
-  const [posts, setPosts] = useState([]); // menyimpan data response GET /posts
-  const [isLoading, setIsLoading] = useState(false)
+  const {data, isLoading} = useQuery({
+    queryFn: async () => {
+      const  postResponse = await axiosInstance.get("/posts");
 
-  const fetchPosts = async () => {
-    setIsLoading(true);
-    try {
-      // setTimeout(async () => {
-        const postsResponse = await axiosInstance.get("/posts");
-
-        setPosts(postsResponse.data.data);
-        setIsLoading(false);
-      // }, 1000)
-    } catch (error) {
-      console.log(error);
+      return postResponse;
     }
-  };
+  })
 
   const renderPosts = () => {
     return posts.map((product) => {
@@ -33,10 +26,6 @@ export default function Home() {
       )
     })
   }
-
-  useEffect(() => {
-    fetchPosts()
-  }, [])
 
   return (
     <>
