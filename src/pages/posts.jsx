@@ -1,11 +1,12 @@
 import NavBar from "@/components/NavBar";
 import { Field } from "@/components/ui/field";
+import { FileInput, FileUploadLabel, FileUploadRoot } from "@/components/ui/file-upload";
 import { Toaster, toaster } from "@/components/ui/toaster";
 import { useCreatePost } from "@/features/useCreatePost";
 import { useDeletePost } from "@/features/useDeletePost";
 import { useFetchPosts } from "@/features/useFetchPosts";
 import { useUpdatePost } from "@/features/useUpdatePost";
-import { Button, Container, Flex, Heading, Image, Input, Spinner, Stack, Table } from "@chakra-ui/react"
+import { Button, Container, Flex, Heading, Input, Spinner, Stack, Table } from "@chakra-ui/react"
 import { useFormik } from "formik";
 import Head from "next/head"
 import { useEffect, useState } from "react";
@@ -30,20 +31,35 @@ export default function Home() {
     setIsClient(true);
   }, []);
 
-  const [previewImage, setPreviewImage] = useState(null);
 
-  const formik = useFormik({
-    initialValues: { id: "", title: "", price: "", content: "", image: null },
-    onSubmit: async () => {
-      const { id, title, price, content, image } = formik.values;
+  const formik = new useFormik({
+    initialValues: {
+      title: "",
+      price: "",
+      content: "",
+      image: ""
+    }, onSubmit: async () => {
+      const { title, price, content, image, id } = formik.values;
 
-      id ? updatePost({ id, title, price: parseInt(price), content, image }) : createPost({ title, price: parseInt(price), content, image });
+      if (id) {
+        // Melakukan Update /posts/id
+        updatePost({
+          title, price: parseInt(price), content, image, id
+        })
+      } else {
+        // Melakukan POST /posts
+        createPost({
+          title, price: parseInt(price), content, image
+        });
+      }
 
-      formik.resetForm();
-      setPreviewImage(null);
+      formik.setFieldValue("id", "")
+      formik.setFieldValue("title", "")
+      formik.setFieldValue("price", "")
+      formik.setFieldValue("content", "")
+      formik.setFieldValue("image", "")
     }
   });
-
 
   const { mutate: createPost, isPending: createPostPending } = useCreatePost({
     onSuccess: () => {
@@ -82,20 +98,12 @@ export default function Home() {
     formik.setFieldValue(event.target.name, event.target.value)
   }
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-
-    if (file) {
-      formik.setFieldValue("image", file);
-      setPreviewImage(URL.createObjectURL(file));
-    }
-  };
-
-
-  const onEditClick = (post) => {
-    formik.setValues(post);
-    setPreviewImage(post.image || null)
-
+  const onEditClick = (product) => {
+    formik.setFieldValue("id", product.id)
+    formik.setFieldValue("title", product.title)
+    formik.setFieldValue("price", product.price)
+    formik.setFieldValue("content", product.content)
+    formik.setFieldValue("image", product.image)
   }
 
   const confirmationDelete = (postId) => {
@@ -114,7 +122,7 @@ export default function Home() {
           <Table.Cell>{post.title}</Table.Cell>
           <Table.Cell>$ {post.price}</Table.Cell>
           <Table.Cell>{post.content}</Table.Cell>
-          <Table.Cell><Image src={post.image} boxSize={"60px"} /></Table.Cell>
+          <Table.Cell>{post.image}</Table.Cell>
           <Table.Cell>
             <Button colorPalette={"yellow"} mr={"3"} onClick={() => onEditClick(post)}>Edit</Button>
             {
@@ -136,7 +144,7 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <main>
-        <NavBar />
+        <NavBar/>
         <Container>
           <Toaster />
           <Heading as={"h1"}>Helo World!</Heading>
@@ -170,15 +178,14 @@ export default function Home() {
               <Field label="Price">
                 <Input placeholder="Price Post" onChange={handleFormInput} name="price" value={formik.values.price}></Input>
               </Field>
-
-
               <Field label="Content">
                 <Input placeholder="Content Post" onChange={handleFormInput} name="content" value={formik.values.content}></Input>
               </Field>
-              <input type="file" name="image" onChange={handleFileChange} />
-              {
-                previewImage && <Image src={previewImage} alt="Preview" boxSize="100px" />
-              }
+             <FileUploadRoot>
+              <FileUploadLabel>
+                <FileInput name="image">Upload Image</FileInput>
+              </FileUploadLabel>
+             </FileUploadRoot>
             </Stack >
 
             <Flex justify={"center"}>
